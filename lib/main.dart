@@ -127,7 +127,8 @@ class _MyHomePageState extends State<MyHomePage>
                 weather24Hours(weather.forecast),
                 weatherWeek(weather.forecast),
                 weatherDetail(weather.current),
-                weekSun(weather.forecast.forecastday.first.astro)
+                weekSun(
+                    weather.forecast.forecastday.first.astro, weather.current)
               ],
             ),
           ) // This trailing comma makes auto-formatting nicer for build methods.
@@ -436,19 +437,53 @@ class _MyHomePageState extends State<MyHomePage>
         ));
   }
 
-  Widget weekSun(Astro astro) {
+  Widget weekSun(Astro astro, Current current) {
     return Container(
       width: MediaQuery.of(context).size.width,
+      height: 190,
       margin: EdgeInsets.all(15),
       padding: EdgeInsets.all(10),
       decoration: BoxDecoration(
-          color: Color(0xFF9E9E9E), borderRadius: BorderRadius.circular(5)),
+          color: Color(0xFF9E9E9E),
+          borderRadius: BorderRadius.circular(5),
+          image: DecorationImage(
+              image: AssetImage("images/fengche2.gif"), fit: BoxFit.cover)),
       child: Stack(
         children: <Widget>[
+          Align(
+            alignment: Alignment.topLeft,
+            child: Text("太阳和风速",
+                style: TextStyle(fontSize: 12, color: Colors.white)),
+          ),
           CustomPaint(
             painter: MyCustomPainter(-pi, controller.value * pi),
-            size: Size(MediaQuery.of(context).size.width, 120),
-          )
+            size: Size(MediaQuery.of(context).size.width, 155),
+          ),
+          Align(
+            alignment: Alignment.bottomLeft,
+            child: Text(astro.sunrise,
+                style: TextStyle(fontSize: 8, color: Colors.white)),
+          ),
+          Align(
+            alignment: Alignment.bottomRight,
+            child: Text(astro.sunset,
+                style: TextStyle(fontSize: 8, color: Colors.white)),
+          ),
+          Positioned(
+              top: 80,
+              right: 60,
+              child: Column(
+                children: <Widget>[
+                  Text("风速",
+                      style: TextStyle(fontSize: 9, color: Colors.white)),
+                  Text("${current.wind_mph}英里/小时",
+                      style: TextStyle(fontSize: 10, color: Colors.white)),
+                  Text("气压",
+                      style: TextStyle(fontSize: 9, color: Colors.white)),
+                  Text("${current.pressure_mb}毫巴",
+                      style: TextStyle(fontSize: 10, color: Colors.white))
+                ],
+              ))
         ],
       ),
     );
@@ -471,7 +506,7 @@ class MyCustomPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3;
     Rect rect1 = Rect.fromCircle(
-        center: Offset(size.width / 2, size.height), radius: size.width / 3);
+        center: Offset(size.width / 2, size.height), radius: size.width / 2.5);
     canvas.drawArc(rect1, -pi, pi, false, paint1);
     //sunrise
     Paint paint2 = Paint()
@@ -481,7 +516,7 @@ class MyCustomPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3;
     Rect rect2 = Rect.fromCircle(
-        center: Offset(size.width / 2, size.height), radius: size.width / 3);
+        center: Offset(size.width / 2, size.height), radius: size.width / 2.5);
     canvas.drawArc(rect2, start, sweep, false, paint2);
   }
 

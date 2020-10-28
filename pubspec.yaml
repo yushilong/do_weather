@@ -52,6 +52,8 @@ flutter:
     - images/mainbg.jpeg
     - images/up.png
     - images/down.png
+    - images/fengche.gif
+    - images/fengche2.gif
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware.
