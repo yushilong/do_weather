@@ -11,6 +11,9 @@ import 'package:do_weather/models/Forecastday.dart';
 import 'package:do_weather/models/Hour.dart';
 import 'package:do_weather/models/weatherForecast.dart';
 import 'package:flutter/material.dart';
+import 'package:geocoding/geocoding.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:transparent_image/transparent_image.dart';
 
 void main() {
   runApp(MyApp());
@@ -63,20 +66,21 @@ class MyHomePage extends StatefulWidget {
   _MyHomePageState createState() => _MyHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage>
-    with SingleTickerProviderStateMixin {
+class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
   weatherForecast weather;
   AnimationController controller;
+  AnimationController headerController;
 
   @override
   void initState() {
-    // TODO: implement initState
     controller =
         AnimationController(vsync: this, duration: Duration(milliseconds: 3000))
           ..repeat()
           ..addListener(() {
             setState(() {});
           });
+    headerController = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 2000));
     super.initState();
     fetchWeather("shanghai");
   }
@@ -84,16 +88,32 @@ class _MyHomePageState extends State<MyHomePage>
   @override
   void dispose() {
     controller.dispose();
+    headerController.dispose();
     super.dispose();
   }
 
   Future<void> fetchWeather(String city) async {
     BotToast.showLoading();
+    bool isLocationServiceEnabled = await Geolocator.isLocationServiceEnabled();
+    print("isLocationServiceEnabled = $isLocationServiceEnabled");
+    if (!isLocationServiceEnabled) {
+      Geolocator.openLocationSettings();
+      return;
+    }
+    Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high);
+    List<Placemark> address = await placemarkFromCoordinates(
+        position.latitude, position.longitude,
+        localeIdentifier: "en_US");
+    Placemark placemark = address.first;
     Response response = await Dio().get(
-        "http://api.weatherapi.com/v1/forecast.json?key=0009bee6bf324d1a94885641202610&days=10&q=$city");
+        "http://api.weatherapi.com/v1/forecast.json?key=0009bee6bf324d1a94885641202610&days=10&q=${city == null ? placemark.locality : city}");
     if (response.statusCode == HttpStatus.ok) {
       setState(() {
         weather = weatherForecast.fromJson(response.data);
+      });
+      Future.delayed(Duration(milliseconds: 6000), () {
+        headerController.forward(from: 0);
       });
       BotToast.closeAllLoading();
     } else {
@@ -101,36 +121,72 @@ class _MyHomePageState extends State<MyHomePage>
     }
   }
 
+  GlobalKey weatherNowKey = GlobalKey();
+
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
     return weather == null
         ? Scaffold()
         : Scaffold(
-            body: Container(
-            width: MediaQuery.of(context).size.width,
-            decoration: BoxDecoration(
-                image: DecorationImage(
-                    image: AssetImage("images/mainbg.jpeg"),
-                    fit: BoxFit.cover)),
-            child: Column(
-              children: <Widget>[
-                Align(
-                  alignment: Alignment.topLeft,
-                  child: weatherNow(weather.current),
+            body: Stack(
+            children: <Widget>[
+              FadeInImage.memoryNetwork(
+                  placeholder: kTransparentImage,
+                  image:
+                      "https://picsum.photos/${MediaQuery.of(context).size.width.toInt()}/${MediaQuery.of(context).size.height.toInt()}"),
+              SingleChildScrollView(
+                scrollDirection: Axis.vertical,
+                child: Column(
+                  children: <Widget>[
+                    AnimatedBuilder(
+                      animation: headerController,
+                      builder: (BuildContext context, Widget child) {
+                        return SizedBox(
+                          height: headerController.value *
+                              (MediaQuery.of(context).size.height - 140),
+                        );
+                      },
+                    ),
+                    Align(
+                      key: weatherNowKey,
+                      alignment: Alignment.topLeft,
+                      child: weatherNow(weather.current),
+                    ),
+                    weather24Hours(weather.forecast),
+                    weatherWeek(weather.forecast),
+                    weatherDetail(weather.current),
+                    weatherSun(weather.forecast.forecastday.first.astro,
+                        weather.current),
+                  ],
                 ),
-                weather24Hours(weather.forecast),
-                weatherWeek(weather.forecast),
-                weatherDetail(weather.current),
-                weekSun(
-                    weather.forecast.forecastday.first.astro, weather.current)
-              ],
-            ),
+              ),
+              Container(
+                  margin:
+                      EdgeInsets.only(top: MediaQuery.of(context).padding.top),
+                  width: MediaQuery.of(context).size.width,
+                  height: 50,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: <Widget>[
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: IconButton(
+                          icon: Icon(Icons.menu),
+                          color: Colors.black26,
+                          onPressed: () {},
+                        ),
+                      ),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: IconButton(
+                          icon: Icon(Icons.add),
+                          color: Colors.black26,
+                          onPressed: () {},
+                        ),
+                      )
+                    ],
+                  ))
+            ],
           ) // This trailing comma makes auto-formatting nicer for build methods.
             );
   }
@@ -216,7 +272,7 @@ class _MyHomePageState extends State<MyHomePage>
       height: 75,
       margin: EdgeInsets.only(right: 10),
       decoration: BoxDecoration(
-          color: Color(0xFF9E9E9E), borderRadius: BorderRadius.circular(5)),
+          color: Color(0x40000000), borderRadius: BorderRadius.circular(5)),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: <Widget>[
@@ -248,7 +304,7 @@ class _MyHomePageState extends State<MyHomePage>
       margin: EdgeInsets.all(15),
       padding: EdgeInsets.all(10),
       decoration: BoxDecoration(
-          color: Color(0xFF9E9E9E), borderRadius: BorderRadius.circular(5)),
+          color: Color(0x40000000), borderRadius: BorderRadius.circular(5)),
       child: Column(
         children: <Widget>[
           Row(
@@ -341,7 +397,7 @@ class _MyHomePageState extends State<MyHomePage>
         margin: EdgeInsets.all(15),
         padding: EdgeInsets.all(10),
         decoration: BoxDecoration(
-            color: Color(0xFF9E9E9E), borderRadius: BorderRadius.circular(5)),
+            color: Color(0x40000000), borderRadius: BorderRadius.circular(5)),
         child: Column(
           children: <Widget>[
             Align(
@@ -368,11 +424,11 @@ class _MyHomePageState extends State<MyHomePage>
                         children: <Widget>[
                           Text(
                             "体感温度",
-                            style: TextStyle(fontSize: 12, color: Colors.white),
+                            style: TextStyle(fontSize: 10, color: Colors.white),
                           ),
                           Text(
                             "${current.feelslike_c}℃",
-                            style: TextStyle(fontSize: 12, color: Colors.white),
+                            style: TextStyle(fontSize: 10, color: Colors.white),
                           )
                         ],
                       ),
@@ -381,11 +437,11 @@ class _MyHomePageState extends State<MyHomePage>
                         children: <Widget>[
                           Text(
                             "湿度",
-                            style: TextStyle(fontSize: 12, color: Colors.white),
+                            style: TextStyle(fontSize: 10, color: Colors.white),
                           ),
                           Text(
                             "${current.humidity}%",
-                            style: TextStyle(fontSize: 12, color: Colors.white),
+                            style: TextStyle(fontSize: 10, color: Colors.white),
                           )
                         ],
                       ),
@@ -394,11 +450,11 @@ class _MyHomePageState extends State<MyHomePage>
                         children: <Widget>[
                           Text(
                             "能见度",
-                            style: TextStyle(fontSize: 12, color: Colors.white),
+                            style: TextStyle(fontSize: 10, color: Colors.white),
                           ),
                           Text(
                             "${current.vis_km}公里",
-                            style: TextStyle(fontSize: 12, color: Colors.white),
+                            style: TextStyle(fontSize: 10, color: Colors.white),
                           )
                         ],
                       ),
@@ -407,11 +463,11 @@ class _MyHomePageState extends State<MyHomePage>
                         children: <Widget>[
                           Text(
                             "UV Index",
-                            style: TextStyle(fontSize: 12, color: Colors.white),
+                            style: TextStyle(fontSize: 10, color: Colors.white),
                           ),
                           Text(
                             "${current.uv}",
-                            style: TextStyle(fontSize: 12, color: Colors.white),
+                            style: TextStyle(fontSize: 10, color: Colors.white),
                           )
                         ],
                       ),
@@ -420,11 +476,11 @@ class _MyHomePageState extends State<MyHomePage>
                         children: <Widget>[
                           Text(
                             "露点",
-                            style: TextStyle(fontSize: 12, color: Colors.white),
+                            style: TextStyle(fontSize: 10, color: Colors.white),
                           ),
                           Text(
                             "${current.uv}",
-                            style: TextStyle(fontSize: 12, color: Colors.white),
+                            style: TextStyle(fontSize: 10, color: Colors.white),
                           )
                         ],
                       ),
@@ -437,14 +493,14 @@ class _MyHomePageState extends State<MyHomePage>
         ));
   }
 
-  Widget weekSun(Astro astro, Current current) {
+  Widget weatherSun(Astro astro, Current current) {
     return Container(
       width: MediaQuery.of(context).size.width,
       height: 190,
       margin: EdgeInsets.all(15),
       padding: EdgeInsets.all(10),
       decoration: BoxDecoration(
-          color: Color(0xFF9E9E9E),
+          color: Color(0x40000000),
           borderRadius: BorderRadius.circular(5),
           image: DecorationImage(
               image: AssetImage("images/fengche2.gif"), fit: BoxFit.cover)),
@@ -505,9 +561,9 @@ class MyCustomPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3;
-    Rect rect1 = Rect.fromCircle(
+    Rect rect = Rect.fromCircle(
         center: Offset(size.width / 2, size.height), radius: size.width / 2.5);
-    canvas.drawArc(rect1, -pi, pi, false, paint1);
+    canvas.drawArc(rect, -pi, pi, false, paint1);
     //sunrise
     Paint paint2 = Paint()
       ..color = Colors.yellow
@@ -515,9 +571,7 @@ class MyCustomPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3;
-    Rect rect2 = Rect.fromCircle(
-        center: Offset(size.width / 2, size.height), radius: size.width / 2.5);
-    canvas.drawArc(rect2, start, sweep, false, paint2);
+    canvas.drawArc(rect, start, sweep, false, paint2);
   }
 
   @override
