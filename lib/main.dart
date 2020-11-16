@@ -11,8 +11,6 @@ import 'package:do_weather/models/Forecastday.dart';
 import 'package:do_weather/models/Hour.dart';
 import 'package:do_weather/models/weatherForecast.dart';
 import 'package:flutter/material.dart';
-import 'package:geocoding/geocoding.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:transparent_image/transparent_image.dart';
 
 void main() {
@@ -94,20 +92,8 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
 
   Future<void> fetchWeather(String city) async {
     BotToast.showLoading();
-    bool isLocationServiceEnabled = await Geolocator.isLocationServiceEnabled();
-    print("isLocationServiceEnabled = $isLocationServiceEnabled");
-    if (!isLocationServiceEnabled) {
-      Geolocator.openLocationSettings();
-      return;
-    }
-    Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high);
-    List<Placemark> address = await placemarkFromCoordinates(
-        position.latitude, position.longitude,
-        localeIdentifier: "en_US");
-    Placemark placemark = address.first;
     Response response = await Dio().get(
-        "http://api.weatherapi.com/v1/forecast.json?key=0009bee6bf324d1a94885641202610&days=10&q=${city == null ? placemark.locality : city}");
+        "http://api.weatherapi.com/v1/forecast.json?key=0009bee6bf324d1a94885641202610&days=10&q=shanghai");
     if (response.statusCode == HttpStatus.ok) {
       setState(() {
         weather = weatherForecast.fromJson(response.data);
